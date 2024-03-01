@@ -1,0 +1,81 @@
+name: cicd
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+concurrency:
+  # prevent concurrent executions of this workflow
+  # we need the dev update to complete before promoting 
+  group: ${{ github.workflow }}
+
+jobs:
+  update-dev:
+    runs-on: ubuntu-latest
+    # only runs against commits to the main branch
+    if: github.ref == 'refs/heads/main'
+    environment: development
+    steps:
+      - uses: actions/checkout@v3
+      - uses: jiridj/wm-apigw-actions-register-api@v1
+        with: 
+          apigw-url: ${{ secrets.APIGW_URL }}
+          apigw-username: ${{ secrets.APIGW_USERNAME }}
+          apigw-password: ${{ secrets.APIGW_PASSWORD }}
+          api-spec: swagger.json
+          set-active: true
+          debug: ${{ secrets.ACTIONS_STEP_DEBUG }}
+
+  promote-to-staging:
+    runs-on: ubuntu-latest
+    # only run for tags
+    if: contains(github.ref, 'refs/tags/')
+    environment: staging
+    steps:
+      - uses: actions/checkout@v3
+      - id: api-info
+        # get the api name and version from the swagger spec
+        # we need to set these as variables to use them as input in the next step
+        run: |
+          API_NAME=$(jq '.info.title' swagger.json | tr -d '"')
+          API_VERSION=$(jq '.info.version' swagger.json | tr -d '"')
+          echo "::set-output name=api-name::${API_NAME}"
+          echo "::set-output name=api-version::${API_VERSION}"
+      - uses: jiridj/wm-apigw-actions-promote-api@v1
+        with: 
+          apigw-url: ${{ secrets.APIGW_URL }}
+          apigw-username: ${{ secrets.APIGW_USERNAME }}
+          apigw-password: ${{ secrets.APIGW_PASSWORD }}
+          api-name: ${{ steps.api-info.outputs.api-name }}
+          api-version: ${{ steps.api-info.outputs.api-version }}
+          stage-name: staging
+          debug: ${{ secrets.ACTIONS_STEP_DEBUG }} 
+
+  promote-to-prod:
+    runs-on: ubuntu-latest
+    needs: [ promote-to-staging ]
+    # only run for tags
+    if: contains(github.ref, 'refs/tags/')
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      - id: api-info
+        # get the api name and version from the swagger spec
+        # we need to set these as variables to use them as input in the next step
+        run: |
+          API_NAME=$(jq '.info.title' swagger.json | tr -d '"')
+          API_VERSION=$(jq '.info.version' swagger.json | tr -d '"')
+          echo "::set-output name=api-name::${API_NAME}"
+          echo "::set-output name=api-version::${API_VERSION}"
+      - uses: jiridj/wm-apigw-actions-promote-api@v1
+        with: 
+          apigw-url: ${{ secrets.APIGW_URL }}
+          apigw-username: ${{ secrets.APIGW_USERNAME }}
+          apigw-password: ${{ secrets.APIGW_PASSWORD }}
+          api-name: ${{ steps.api-info.outputs.api-name }}
+          api-version: ${{ steps.api-info.outputs.api-version }}
+          stage-name: production
+          debug: ${{ secrets.ACTIONS_STEP_DEBUG }}

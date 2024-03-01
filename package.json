@@ -1,0 +1,24 @@
+{
+  "name": "wmtc-blog-apim-github-actions",
+  "version": "0.1.8",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "version": "cross-var node versioning.js $npm_package_version && git add .",
+    "postversion": "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiridj/wmtc-blog-apim-github-actions.git"
+  },
+  "keywords": [],
+  "author": "Jiri De Jagere <jiridj@gmail.com> (https://jiridj.be/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jiridj/wmtc-blog-apim-github-actions/issues"
+  },
+  "homepage": "https://github.com/jiridj/wmtc-blog-apim-github-actions#readme",
+  "devDependencies": {
+    "cross-var": "^1.1.0"
+  }
+}
